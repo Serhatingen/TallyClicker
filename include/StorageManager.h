@@ -25,6 +25,4 @@ bool appendEvent(const char* eventType);
 
 String buildDailyRows();
 String buildMonthlyRows();
-String buildAllLogsCombined();
-String buildMonthBulkCsv(const String& monthStr);
 bool deleteAllLogs();

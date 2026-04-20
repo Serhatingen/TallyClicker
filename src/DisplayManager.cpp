@@ -155,9 +155,9 @@ void showLoadingScreen() {
 }
 
 void updateScreen() {
-  bool invertNow = millis() < app.invertUntilMs;
+  bool invertNow = (long)(millis() - app.invertUntilMs) < 0;
 
-  if (millis() < app.debugUntilMs) {
+  if ((long)(millis() - app.debugUntilMs) < 0) {
     app.currentScreen = ScreenMode::Debug;
     renderDebugScreen(invertNow);
     return;
@@ -167,7 +167,7 @@ void updateScreen() {
     renderPortalScreen(invertNow);
     return;
   }
-  if (millis() < app.infoUntilMs) {
+  if ((long)(millis() - app.infoUntilMs) < 0) {
     app.currentScreen = ScreenMode::Ok;
     renderOkScreen(app.lastShownEntryCount, invertNow);
     return;

@@ -63,6 +63,7 @@ void ensureHeaderIfNeeded(const String& path, const String& headerLine) {
 }
 
 bool appendLine(const String& path, const String& line) {
+  if (!app.fsOk) return false;
   File f = LittleFS.open(path, FILE_APPEND);
   if (!f) return false;
   f.println(line);
@@ -178,9 +179,20 @@ uint32_t countCurrentMonthEntries() {
 bool rebuildMonthlySummary(const String& businessMonth, const String& monthlyPath, const String& currentDay) {
   if (!app.fsOk) return false;
 
-  String monthlyContent = "business_date,total_entries\n";
+  static const char* tmpPath = "/~tmp_monthly.csv";
+
+  if (LittleFS.exists(tmpPath)) LittleFS.remove(tmpPath);
+
+  File mf = LittleFS.open(tmpPath, FILE_WRITE);
+  if (!mf) return false;
+  mf.println("business_date,total_entries");
+
   File root = LittleFS.open("/");
-  if (!root) return false;
+  if (!root) {
+    mf.close();
+    LittleFS.remove(tmpPath);
+    return false;
+  }
 
   File file = root.openNextFile();
   while (file) {
@@ -188,16 +200,18 @@ bool rebuildMonthlySummary(const String& businessMonth, const String& monthlyPat
     if (!file.isDirectory() && name.startsWith("/day_") && getMonthFromDailyPath(name) == businessMonth) {
       String d = getDateFromDailyPath(name);
       uint32_t countForDay = (d == currentDay) ? app.dailyEntryCount : countEventsInFile(name);
-      monthlyContent += d + "," + String(countForDay) + "\n";
+      mf.println(d + "," + String(countForDay));
     }
     file = root.openNextFile();
   }
   root.close();
-
-  File mf = LittleFS.open(monthlyPath, FILE_WRITE);
-  if (!mf) return false;
-  mf.print(monthlyContent);
   mf.close();
+
+  LittleFS.remove(monthlyPath);
+  if (!LittleFS.rename(tmpPath, monthlyPath)) {
+    LittleFS.remove(tmpPath);
+    return false;
+  }
 
   app.monthlyEntryCount = countMonthEntriesFromSummaryFile(monthlyPath);
   return true;
@@ -288,59 +302,6 @@ String buildMonthlyRows() {
 
   if (!found) rows = "<tr><td colspan='4'>Aylik log yok</td></tr>";
   return rows;
-}
-
-String buildAllLogsCombined() {
-  String out = "file_name,content\n";
-  File root = LittleFS.open("/");
-  if (!root) return out;
-
-  File file = root.openNextFile();
-  while (file) {
-    String name = file.name();
-    if (!file.isDirectory() && (name.startsWith("/day_") || name.startsWith("/month_"))) {
-      File f = LittleFS.open(name, FILE_READ);
-      if (f) {
-        while (f.available()) {
-          String line = f.readStringUntil('\n');
-          line.trim();
-          if (!line.isEmpty()) out += csvEscape(name) + "," + csvEscape(line) + "\n";
-        }
-        f.close();
-      }
-    }
-    file = root.openNextFile();
-  }
-  root.close();
-  return out;
-}
-
-String buildMonthBulkCsv(const String& monthStr) {
-  String out = "source_file,rtc_datetime,business_date,business_day_name,business_hour,event_type,device_id,unix_time\n";
-  File root = LittleFS.open("/");
-  if (!root) return out;
-
-  File file = root.openNextFile();
-  while (file) {
-    String name = file.name();
-    if (!file.isDirectory() && name.startsWith("/day_") && getMonthFromDailyPath(name) == monthStr) {
-      File f = LittleFS.open(name, FILE_READ);
-      if (f) {
-        bool firstLine = true;
-        while (f.available()) {
-          String line = f.readStringUntil('\n');
-          line.trim();
-          if (line.isEmpty()) continue;
-          if (firstLine) { firstLine = false; continue; }
-          out += name.substring(1) + "," + line + "\n";
-        }
-        f.close();
-      }
-    }
-    file = root.openNextFile();
-  }
-  root.close();
-  return out;
 }
 
 bool deleteAllLogs() {

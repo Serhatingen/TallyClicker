@@ -41,9 +41,7 @@ bool rtcTimeReady() {
 }
 
 DateTime getBusinessDateTime(const DateTime& nowLocal) {
-  uint32_t ts = nowLocal.unixtime();
-  if (nowLocal.hour() < Config::CLUB_DAY_CUTOFF_HOUR) ts -= 86400UL;
-  return DateTime(ts);
+  return nowLocal;
 }
 
 int getBusinessHour(const DateTime& nowLocal) {

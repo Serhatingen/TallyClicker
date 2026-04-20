@@ -14,8 +14,6 @@ namespace Config {
   constexpr uint8_t OLED_ADDR = 0x3C;
   constexpr int AUDIO_RES_BITS = 8;
 
-  constexpr int CLUB_DAY_CUTOFF_HOUR = 0;
-
   constexpr unsigned long BUTTON_DEBOUNCE_MS = 18;
   constexpr unsigned long LONG_PRESS_MS = 3000;
   constexpr unsigned long DEBUG_PRESS_MS = 10000;

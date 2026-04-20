@@ -115,15 +115,82 @@ static void setupRoutes() {
     touchPortalActivity();
     if (!web.hasArg("month")) { web.send(400, "text/plain", "month gerekli"); return; }
     String monthStr = web.arg("month");
-    String csv = buildMonthBulkCsv(monthStr);
+
+    if (monthStr.length() != 7 || monthStr.charAt(4) != '-') {
+      web.send(400, "text/plain", "gecersiz ay parametresi");
+      return;
+    }
+    for (int i = 0; i < 7; i++) {
+      if (i == 4) continue;
+      if (!isDigit(monthStr.charAt(i))) {
+        web.send(400, "text/plain", "gecersiz ay parametresi");
+        return;
+      }
+    }
+
+    if (!app.fsOk) { web.send(503, "text/plain", "dosya sistemi hazir degil"); return; }
+
     web.sendHeader("Content-Disposition", "attachment; filename=\"bulk_" + monthStr + ".csv\"");
-    web.send(200, "text/csv", csv);
+    web.setContentLength(CONTENT_LENGTH_UNKNOWN);
+    web.send(200, "text/csv", "");
+    web.sendContent("source_file,rtc_datetime,business_date,business_day_name,business_hour,event_type,device_id,unix_time\n");
+
+    File root = LittleFS.open("/");
+    if (root) {
+      File file = root.openNextFile();
+      while (file) {
+        String name = file.name();
+        if (!file.isDirectory() && name.startsWith("/day_") && getMonthFromDailyPath(name) == monthStr) {
+          File f = LittleFS.open(name, FILE_READ);
+          if (f) {
+            bool firstLine = true;
+            while (f.available()) {
+              String line = f.readStringUntil('\n');
+              line.trim();
+              if (line.isEmpty()) continue;
+              if (firstLine) { firstLine = false; continue; }
+              web.sendContent(name.substring(1) + "," + line + "\n");
+            }
+            f.close();
+          }
+        }
+        file = root.openNextFile();
+      }
+      root.close();
+    }
+    web.sendContent("");
   });
 
   web.on("/download-all-logs", HTTP_GET, []() {
     touchPortalActivity();
+    if (!app.fsOk) { web.send(503, "text/plain", "dosya sistemi hazir degil"); return; }
+
     web.sendHeader("Content-Disposition", "attachment; filename=\"all_logs.csv\"");
-    web.send(200, "text/csv", buildAllLogsCombined());
+    web.setContentLength(CONTENT_LENGTH_UNKNOWN);
+    web.send(200, "text/csv", "");
+    web.sendContent("file_name,content\n");
+
+    File root = LittleFS.open("/");
+    if (root) {
+      File file = root.openNextFile();
+      while (file) {
+        String name = file.name();
+        if (!file.isDirectory() && (name.startsWith("/day_") || name.startsWith("/month_"))) {
+          File f = LittleFS.open(name, FILE_READ);
+          if (f) {
+            while (f.available()) {
+              String line = f.readStringUntil('\n');
+              line.trim();
+              if (!line.isEmpty()) web.sendContent(csvEscape(name) + "," + csvEscape(line) + "\n");
+            }
+            f.close();
+          }
+        }
+        file = root.openNextFile();
+      }
+      root.close();
+    }
+    web.sendContent("");
   });
 
   web.on("/delete-all", HTTP_POST, []() {

@@ -59,7 +59,7 @@ void loop() {
     updatePortalButtonLogic();
     updateScreen();
 
-    if (millis() < app.debugUntilMs) clearPixels();
+    if ((long)(millis() - app.debugUntilMs) < 0) clearPixels();
     else if (app.portalClientConnected) portalConnectedLedPulse();
     else portalIdleLedBreath();
 
@@ -70,11 +70,11 @@ void loop() {
   updateActiveModeButtonLogic();
   updateScreen();
 
-  if (millis() < app.debugUntilMs) clearPixels();
-  else if (millis() < app.infoUntilMs) okScreenGlowAnimation();
+  if ((long)(millis() - app.debugUntilMs) < 0) clearPixels();
+  else if ((long)(millis() - app.infoUntilMs) < 0) okScreenGlowAnimation();
   else idleReadyAnimation();
 
-  if (!app.apActive && millis() > app.infoUntilMs && millis() > app.debugUntilMs && app.currentScreen == ScreenMode::None) {
+  if (!app.apActive && (long)(millis() - app.infoUntilMs) >= 0 && (long)(millis() - app.debugUntilMs) >= 0 && app.currentScreen == ScreenMode::None) {
     oledOff();
   }
 
